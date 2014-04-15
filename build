@@ -1,0 +1,6 @@
+#!/bin/sh
+
+clear
+rm imlibsetroot 
+gcc imlibsetroot.c `imlib2-config --cflags` `imlib2-config --libs` -I/usr/include/X11/extensions -lXinerama -o imlibsetroot
+
