@@ -2,5 +2,5 @@
 
 clear
 rm imlibsetroot 
-gcc imlibsetroot.c `imlib2-config --cflags` `imlib2-config --libs` -I/usr/include/X11/extensions -lXinerama -o imlibsetroot
+gcc imlibsetroot.c `imlib2-config --cflags` `imlib2-config --libs` -I/opt/local/include/X11/extensions -lXinerama -o imlibsetroot -lx11
 

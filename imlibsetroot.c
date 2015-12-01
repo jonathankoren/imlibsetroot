@@ -44,6 +44,7 @@
  * 			  (default)
  * 	-x e		operate on all xinerama screens independently
  * 	-x N		operate on xinerama screen N
+ * 	-X			alias for -x
  * 
  * image options
  * 	-s		scale pixmap to the current screen's size
@@ -176,14 +177,14 @@ typedef struct
     int scaling_mode;
     int width;					/* used with SCALE_ABSOLUTE */
     int height;					/* used with SCALE_ABSOLUTE */
-    float scaling_factor;			/* used with SCALE_FACTOR */
+    float scaling_factor;		/* used with SCALE_FACTOR */
 
     int mirror;
-    int orientation;				/* 0 = none
-                                                 * 1 = clockwise 90
-                                                 * 2 = clockwise 180
-                                                 * 3 = clockwise 270
-                                                 */
+    int orientation;			/* 0 = none
+                                 * 1 = clockwise 90
+                                 * 2 = clockwise 180
+                                 * 3 = clockwise 270
+                                 */
     int flip;
     int center;					/* which axes to center on */
     int x;
@@ -233,8 +234,8 @@ Window get_desktop_window();
 
 /* get_desktop_window() finds the window that draws the desktop.
  *
- * FIXME:  This isn't a complete search.  It only checks the immediate
- * children of the root window.
+ * This only doesn't do a complete search, but rather only checks the 
+ * immediate children of the root window.
  */
 
 Window get_desktop_window()
@@ -395,6 +396,7 @@ void print_usage()
 "			  (default)\n"\
 "	-x e		operate on all xinerama screens independently\n"\
 "	-x N		operate on xinerama screen N\n"\
+"	-X			alias for -x\n"\
 "\n"\
 "image options\n"\
 "	-s		scale pixmap to the current screen's size\n"\
@@ -529,7 +531,7 @@ void process_args(int argc, char **argv)
 
     for (; i < argc; i++)
     {
-        if     (strcmp(argv[i], "-x") == 0)
+        if     ((strcmp(argv[i], "-x") == 0) || (strcmp(argv[i], "-X") == 0))
         {
             if      (strcmp(argv[i + 1], "s") == 0)
             {
@@ -600,9 +602,9 @@ void process_args(int argc, char **argv)
                     int height = -1;
 
                     STRDUP(tuple, argv[i + 1]);
-                    if (tok = strtok(tuple, ","))
+                    if ((tok = strtok(tuple, ",")))
                         width = atoi(tok);
-                    if (tok = strtok(NULL, ","))
+                    if ((tok = strtok(NULL, ",")))
                         height = atoi(tok);
                     FREE(tuple);
 
@@ -646,9 +648,9 @@ void process_args(int argc, char **argv)
                 int y = -1;
                 
                 STRDUP(tuple, argv[i + 1]);
-                if (tok = strtok(tuple, ","))
+                if ((tok = strtok(tuple, ",")))
                     x = atoi(tok);
-                if (tok = strtok(NULL, ","))
+                if ((tok = strtok(NULL, ",")))
                     y = atoi(tok);
                 FREE(tuple);
 
@@ -747,9 +749,9 @@ void process_args(int argc, char **argv)
                     int h = -1;
                 
                     STRDUP(tuple, argv[i + 1]);
-                    if (tok = strtok(tuple, ","))
+                    if ((tok = strtok(tuple, ",")))
                         w = atoi(tok);
-                    if (tok = strtok(NULL, ","))
+                    if ((tok = strtok(NULL, ",")))
                         h = atoi(tok);
                     FREE(tuple);
 
@@ -832,11 +834,11 @@ void process_args(int argc, char **argv)
                 char *tok;
                 
                 STRDUP(tuple, argv[i + 1]);
-                if (tok = strtok(tuple, ","))
+                if ((tok = strtok(tuple, ",")))
                     red = atoi(tok);
-                if (tok = strtok(NULL, ","))
+                if ((tok = strtok(NULL, ",")))
                     green = atoi(tok);
-                if (tok = strtok(NULL, ","))
+                if ((tok = strtok(NULL, ",")))
                     blue = atoi(tok);
                 FREE(tuple);
 
@@ -1669,7 +1671,8 @@ void mirror_image(int image_index)
         }
 
 
-        if (IMAGES[image_index].mirror & X_AXIS)
+        if (IMAGES[image_index].mirror & X_AXIS) 
+        {
             if (IMAGES[image_index].mirror & Y_AXIS)
             {
                 /* double mirror */
@@ -1686,7 +1689,7 @@ void mirror_image(int image_index)
                 imlib_image_flip_vertical();
                 imlib_render_image_on_drawable(0, image_height);
             }
-
+        }
 
       
         imlib_free_image();
@@ -1840,7 +1843,7 @@ int main(int argc, char **argv, char **env)
     /* process arguments */
     process_args(argc, argv);
 
-    if (pixmap = create_background())
+    if ((pixmap = create_background()))
     {
         set_pixmap_property(pixmap);
         XSetWindowBackgroundPixmap(XDISPLAY, XROOT, pixmap);
