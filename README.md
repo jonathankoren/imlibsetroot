@@ -18,9 +18,10 @@ Executables
 
 Example
 =======
-On screen 0: mirror Lenna across the y axis, and tile, on screen 1: put 4 mirrored Y2kOK! buttons right in the middle of a sea of "salmon" pink.
+On screen 0: mirror Lenna across the y axis, and tile, while simultaneously 
+putting four mirrored Y2kOK! buttons right in the middle of a sea of "salmon" 
+pink.
 
-On Screen 1:
  ```sh
  ./imlibsetroot x 0 -m y -t ~/Pictures/lenna/l_hires.jpg  -x 1 -m y -m x  -p c --bg salmon ~/Pictures/web_buttons/y2kok.gif
  ```
