@@ -32,7 +32,7 @@ use FileHandle;
 use IPC::Open2;
 use POSIX ":sys_wait_h";
 
-$IMLIBSETROOT = "/Users/jkoren/Downloads/imlibsetroot-1.6/imlibsetroot";
+$IMLIBSETROOT = "/Users/jkoren/devel/imlibsetroot/imlibsetroot";
 $OSASCRIPT    = "/usr/bin/osascript";
 
 
@@ -108,7 +108,7 @@ exit -1 if ($retcode != 0) && ($retcode != 256);
 
 # macify filename, for applescript
 $stored_file =~ s!/!:!g;
-$stored_file = $topdir . $stored_file;
+#$stored_file = $topdir . $stored_file;
 
 
 
@@ -132,7 +132,7 @@ for ($i = 0; $i <= $#desktopnames; $i++)
 {
     # disable changing (i.e. "rotating") the desktop image on some event
     #$ascript .= 'set picture of item ' . ($i + 1) . ' of theDesktops rotation to 0' . "\n";
-    $ascript .= 'set picture of item ' . ($i + 1) . ' of theDesktops to file "' . $basename . $i . $dot_extension . '"' . "\n";
+    $ascript .= 'set picture of item ' . ($i + 1) . ' of theDesktops to "' . $basename . $i . $dot_extension . '"' . "\n";
 }
 $ascript .= 'end tell' . "\n";
 pipe_to_applescript($ascript);
@@ -148,7 +148,7 @@ sub pipe_to_applescript {
     print TO_OSASCRIPT "$ascript\n";
     close TO_OSASCRIPT;
 
-    while (<FROM_OSASCRIPT>) 
+    while (<FROM_OSASCRIPT>)
     {
         $response .= $_;
     }
