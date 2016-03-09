@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012 Jonathan Koren <jonathan@jonathankoren.com>
+ * Copyright (C) 2004-2016 Jonathan Koren <jonathan@jonathankoren.com>
  * set_pixmap_property() copyright (C) 1998 Michael Jennings <mej@eterm.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,12 +23,12 @@
  */
 
 /* imlibsetroot
- * 
+ *
  * Sticks a pixmap(s) on the root window.
- * 
- * 
+ *
+ *
  * usage: imlibsetroot [globalopts] {[screenopts] [imageopts] <filename>}+
- * 
+ *
  * global options
  * 	--help		print usage information
  * 	--version	print version information
@@ -38,14 +38,14 @@
  * 	--store FILE	store the new root image to FILE
  * 	--storeslices	store the root image of each xinerama display
  * 			  as a seperate file.  (Implies --store .)
- * 
+ *
  * screen options
  * 	-x s		operate on the single virtual xinerama screen
  * 			  (default)
  * 	-x e		operate on all xinerama screens independently
  * 	-x N		operate on xinerama screen N
  * 	-X			alias for -x
- * 
+ *
  * image options
  * 	-s		scale pixmap to the current screen's size
  * 			  preserving the pixmap's original aspect ratio
@@ -91,11 +91,11 @@
 
 /* Created:  2004 Jonathan Koren
  * Modified: Tue Feb  7 14:49:52 CST 2006		Jonathan Koren
- * 		Added negative coordinates
+ *              Added negative coordinates
  *           Tue Mar 30 06:07:20 PDT 2010		Jonathan Koren
- * 		Incorporated bug fix from Kyle Rose <krose@krose.org> so that
- *                the aspect ratio preserving scaling to letterbox according 
- *                to the aspect ratio of the underlying display rather than 
+ *              Incorporated bug fix from Kyle Rose <krose@krose.org> so that
+ *                the aspect ratio preserving scaling to letterbox according
+ *                to the aspect ratio of the underlying display rather than
  *                cropping pixmaps that are wider than they are tall, but not
  *                as oblong as the display.
  *              Changed exit codes for easier scripting.  0 now only when we
@@ -105,15 +105,16 @@
  *              Added --bgcolor .
  *          Fri Oct 29 10:21:54 PDT 2010	 	Jonathan Koren
  * 		        Fixed bug when tiling on only one screen on multihead.
- *          Wed Nov 10 18:25:48 PST 2010		Jonathan Koren
+ *          Wed Nov 10 18:25:48 PST 2010		Jonathan Koren
  *  		    Added tiling dimensions.
- *          Fri Oct 19 16:54:46 PDT 2012		Jonathan Koren
+ *          Fri Oct 19 16:54:46 PDT 2012		Jonathan Koren
  *  		    Enforce cropping to monitor size.
  *          Wed Dec 19 13:45:10 PST 2012		Jonathan Koren
  *  		    Enforce cropping to monitor size even when tiling.
  *  		    Changed -T to -t .
- *
- */ 
+ *          Tue Mar  8 22:37:07 PST 2016        Jonathan Koren
+ *              Minor code cleanups.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -148,7 +149,7 @@ typedef struct
     int y;
     int height;
     int width;
-    
+
     /* background color */
     int red;
     int blue;
@@ -169,29 +170,29 @@ screen_t *XINERAMA_SCREENS;
 
 typedef struct
 {
-    char *filename;
+    char *filename;             /* name of file to load */
     Imlib_Image image;
-    int screen;					/* which xinerama screen */
+    int screen;					/* which xinerama screen to draw on */
 
-    
+
     int scaling_mode;
     int width;					/* used with SCALE_ABSOLUTE */
     int height;					/* used with SCALE_ABSOLUTE */
     float scaling_factor;		/* used with SCALE_FACTOR */
 
-    int mirror;
+    int mirror;                 /* which axes to mirror across */
     int orientation;			/* 0 = none
                                  * 1 = clockwise 90
                                  * 2 = clockwise 180
                                  * 3 = clockwise 270
                                  */
-    int flip;
+    int flip;                   /* which axes to flip across */
     int center;					/* which axes to center on */
-    int x;
-    int y;
-    int tile;
-    int tile_w;
-    int tile_h;
+    int x;                      /* X coordinate of top-left pixel (tl 0,0) */
+    int y;                      /* Y coordinate of top-left pixel (tl 0,0) */
+    int tile;					/* flag indicating if we should tile */
+    int tile_w;					/* number of times to tile along X axis */
+    int tile_h;					/* number of times to file along Y axis */
 } image_t;
 int NUM_IMAGES;
 image_t *IMAGES;
@@ -234,7 +235,7 @@ Window get_desktop_window();
 
 /* get_desktop_window() finds the window that draws the desktop.
  *
- * This only doesn't do a complete search, but rather only checks the 
+ * This only doesn't do a complete search, but rather only checks the
  * immediate children of the root window.
  */
 
@@ -242,7 +243,7 @@ Window get_desktop_window()
 {
     Atom prop_desktop;
     Window desktop_window = None;
-    
+
     Atom type;
     int format;
     unsigned long length, after;
@@ -262,7 +263,7 @@ Window get_desktop_window()
 
         if (XQueryTree(XDISPLAY, XROOT,
                        &root, &parent, &children, &nchildren) == False)
-        {	
+        {
             fprintf(stderr, "XQueryTree() failed!\n");
             desktop_window = None;
         }
@@ -275,7 +276,7 @@ Window get_desktop_window()
                                        0L, 1L, False, AnyPropertyType,
                                        &type, &format, &length, &after,
                                        &data) == Success)
-                {	
+                {
                     /* found the property */
                     desktop_window = children[i];
                     if (nchildren)
@@ -283,7 +284,7 @@ Window get_desktop_window()
                     break;
                 }
             }
-            
+
             if (desktop_window == None)
             {
                 /* no child of XROOT has the property */
@@ -303,10 +304,10 @@ Window get_desktop_window()
 /*****************************************************************************/
 
 /*
- * set_pixmap_property() was swipped wholesale from Esetroot.c (part of 
+ * set_pixmap_property() was swipped wholesale from Esetroot.c (part of
  * Eterm, the terminal for the Enlightment project (enlightenment.org)).
  * Esetroot was written by Nat Friedman <ndf@mit.edu>.  The license of this
- * code is unclear, but Eterm itself is licensed under the GPL, so this 
+ * code is unclear, but Eterm itself is licensed under the GPL, so this
  * is most likely covered as well.
  *
  * We're SUPPOSED to find the parent window that set _XROOTPMAP_ID, but
@@ -451,7 +452,7 @@ void print_version()
 /*****************************************************************************/
 
 /* process_args() processes the command line arguments, and loading the globals
- * appropriately.  
+ * appropriately.
  */
 
 void process_args(int argc, char **argv)
@@ -493,10 +494,10 @@ void process_args(int argc, char **argv)
                 strcat(STORE_PIXMAP_FILENAME, "/.background.png");
             }
         }
-        else if (strcmp(argv[i], "--storeslices") == 0) 
+        else if (strcmp(argv[i], "--storeslices") == 0)
         {
             STORE_PIXMAP_SLICES = 1;
-            if (!STORE_PIXMAP) 
+            if (!STORE_PIXMAP)
             {
                 /* implies --store */
                 STORE_PIXMAP = 1;
@@ -507,7 +508,7 @@ void process_args(int argc, char **argv)
                 strcat(STORE_PIXMAP_FILENAME, getenv("HOME"));
                 strcat(STORE_PIXMAP_FILENAME, "/.background.png");
             }
-            
+
         }
         else if (strcmp(argv[i], "--help") == 0)
         {
@@ -523,7 +524,7 @@ void process_args(int argc, char **argv)
             break;
     }
 
-    
+
     /* image options and filename*/
     NUM_IMAGES = 1;
     MALLOC(IMAGES, sizeof(image_t));
@@ -546,7 +547,7 @@ void process_args(int argc, char **argv)
             else if (isdigit(argv[i + 1][0]))
             {
                 int xinerama_screen = atoi(argv[i + 1]);
-                
+
                 if (!((NUM_XINERAMA_SCREENS) &&
                       (xinerama_screen >= 0) &&
                       (xinerama_screen < NUM_XINERAMA_SCREENS)))
@@ -637,7 +638,7 @@ void process_args(int argc, char **argv)
         }
         else if (strcmp(argv[i], "-p") == 0)
         {
-            if     (isdigit(argv[i + 1][0]) || 
+            if     (isdigit(argv[i + 1][0]) ||
                     (argv[i + 1][0] == '-')  || (argv[i + 1][0] == '+'))
             {
                 /* set position to X,Y */
@@ -646,7 +647,7 @@ void process_args(int argc, char **argv)
                 char *tok;
                 int x = -1;
                 int y = -1;
-                
+
                 STRDUP(tuple, argv[i + 1]);
                 if ((tok = strtok(tuple, ",")))
                     x = atoi(tok);
@@ -665,7 +666,7 @@ void process_args(int argc, char **argv)
             else if (strcmp(argv[i + 1], "cx") == 0)
             {
                 IMAGES[NUM_IMAGES - 1].center |= X_AXIS;
-            }           
+            }
             else if (strcmp(argv[i + 1], "cy") == 0)
             {
                 IMAGES[NUM_IMAGES - 1].center |= Y_AXIS;
@@ -747,7 +748,7 @@ void process_args(int argc, char **argv)
                     char *tok;
                     int w = -1;
                     int h = -1;
-                
+
                     STRDUP(tuple, argv[i + 1]);
                     if ((tok = strtok(tuple, ",")))
                         w = atoi(tok);
@@ -756,7 +757,7 @@ void process_args(int argc, char **argv)
                     FREE(tuple);
 
                    IMAGES[NUM_IMAGES - 1].tile_w = w;
-                   IMAGES[NUM_IMAGES - 1].tile_h = h;   
+                   IMAGES[NUM_IMAGES - 1].tile_h = h;
                }
                i++;
            }
@@ -764,7 +765,7 @@ void process_args(int argc, char **argv)
         else if ((strcmp(argv[i], "--bg") == 0) ||
                  (strcmp(argv[i], "--bgcolor") == 0))
         {
-            if (argv[i + 1][0] == '#') 
+            if (argv[i + 1][0] == '#')
             {
                 /* hex rgb #rrggbb */
                 int red = -1;
@@ -787,41 +788,41 @@ void process_args(int argc, char **argv)
                 strncpy(tok, &(argv[i + 1][5]), 2);
                 green = strtol(tok, NULL, 16);
                 FREE(tok);
-                
+
                 if ((red >= 0)   && (green >= 0)   && (blue >= 0) &&
                     (red <= 255) && (green <= 255) && (blue <= 255))
-                {   
+                {
                     /* set current screen's background */
                     if (cur_screen == XINERAMA_SPAN)
                     {
                         XINERAMA_VIRTUAL_SCREEN.red   = red;
                         XINERAMA_VIRTUAL_SCREEN.green = green;
                         XINERAMA_VIRTUAL_SCREEN.blue  = blue;
-                    }   
+                    }
                     else if (cur_screen == XINERAMA_EACH)
                     {
                         int j;
-                        
+
                         for (j = 0; j < NUM_XINERAMA_SCREENS; j++)
                         {
                             XINERAMA_SCREENS[j].red   = red;
                             XINERAMA_SCREENS[j].green = green;
                             XINERAMA_SCREENS[j].blue  = blue;
-                        }   
-                    }   
+                        }
+                    }
                     else
                     {
                         XINERAMA_SCREENS[cur_screen].red   = red;
                         XINERAMA_SCREENS[cur_screen].green = green;
                         XINERAMA_SCREENS[cur_screen].blue  = blue;
-                    }   
-                }   
+                    }
+                }
                 else
                 {
                     fprintf(stderr, "invalid background color = %s\n",
                             argv[i + 1]);
                     exit(1);
-                }   
+                }
 
             }
             else if (isdigit(argv[i + 1][0]))
@@ -832,7 +833,7 @@ void process_args(int argc, char **argv)
                 int blue = -1;
                 char *tuple = NULL;
                 char *tok;
-                
+
                 STRDUP(tuple, argv[i + 1]);
                 if ((tok = strtok(tuple, ",")))
                     red = atoi(tok);
@@ -935,7 +936,7 @@ void process_args(int argc, char **argv)
             {
                 fprintf(stderr, "can't load image %s\n", argv[i]);
                 exit(1);
-            } 
+            }
             IMAGES[NUM_IMAGES - 1].filename = argv[i];
 
             /* ready the next image */
@@ -956,7 +957,7 @@ void process_args(int argc, char **argv)
     {
         FREE(IMAGES);
     }
-    
+
     return;
 }
 
@@ -1018,14 +1019,14 @@ Pixmap create_background()
         fill_background();
     else
         fprintf(stderr, "background filling disabled during compositing\n");
-    
+
 
     /* draw images */
     for (image_index = 0; image_index < NUM_IMAGES; image_index++)
     {
         int x, y;
         int width, height;
-        
+
         imlib_context_set_image(IMAGES[image_index].image);
 
         flip_and_rotate_image(image_index);
@@ -1034,6 +1035,9 @@ Pixmap create_background()
         if ((IMAGES[image_index].screen != XINERAMA_SPAN) &&
             (NUM_XINERAMA_SCREENS > 0))
         {
+            /* Individual screen get their own images, or we're drawing the
+             * same image on multiple screens.
+             */
             for (xinerama_screen = 0;
                  xinerama_screen < NUM_XINERAMA_SCREENS;
                  xinerama_screen++)
@@ -1041,6 +1045,7 @@ Pixmap create_background()
                 if ((IMAGES[image_index].screen == xinerama_screen) ||
                     (IMAGES[image_index].screen == XINERAMA_EACH))
                 {
+                    /* draw IMAGES[image_index] on this xinerama_screen */
                     scale_image(image_index, xinerama_screen, &width, &height);
                     position_image(image_index, xinerama_screen, width, height,
                                    &x, &y);
@@ -1057,7 +1062,7 @@ Pixmap create_background()
                 }
             }
         }
-        else /* XINERAMA_SPAN */
+        else /* XINERAMA_SPAN or no xinerama screens*/
         {
             scale_image(image_index, -1, &width, &height);
             position_image(image_index, -1, width, height, &x, &y);
@@ -1071,7 +1076,7 @@ Pixmap create_background()
         }
     }
 
-    
+
     if (STORE_PIXMAP)
         store_background();
 
@@ -1096,12 +1101,12 @@ void crop_image_to_screen(int image_index, int xinerama_screen)
     if (((x + image_width)  > screen_width) ||
         ((y + image_height) > screen_height))
     {
-fprintf(stderr, "cropping image %d to %d by %d\n", 
-        image_index, 
+fprintf(stderr, "cropping image %d to %d by %d\n",
+        image_index,
         XINERAMA_SCREENS[xinerama_screen].width,
         XINERAMA_SCREENS[xinerama_screen].height);
 
-        Imlib_Image cropped = 
+        Imlib_Image cropped =
           imlib_create_cropped_scaled_image(x,
                                             y,
                                             image_width,
@@ -1122,6 +1127,7 @@ fprintf(stderr, "cropping image %d to %d by %d\n",
 
 void fill_background()
 {
+    int xinescreen;
     Imlib_Image background_color_image;
 
     background_color_image =
@@ -1134,29 +1140,24 @@ void fill_background()
                             XINERAMA_VIRTUAL_SCREEN.green,
                             XINERAMA_VIRTUAL_SCREEN.blue,
                             255);
-    imlib_image_fill_rectangle(XINERAMA_VIRTUAL_SCREEN.x, 
+    imlib_image_fill_rectangle(XINERAMA_VIRTUAL_SCREEN.x,
                                XINERAMA_VIRTUAL_SCREEN.y,
                                XINERAMA_VIRTUAL_SCREEN.width,
                                XINERAMA_VIRTUAL_SCREEN.height);
-    
-    /* paint the individual screens */
-    if (NUM_XINERAMA_SCREENS)
-    {
-        int i;
 
-        for (i = 0; i < NUM_XINERAMA_SCREENS; i++)
+    /* repaint specified individual screens */
+    for (xinescreen = 0; xinescreen < NUM_XINERAMA_SCREENS; xinescreen++)
+    {
+        if (XINERAMA_SCREENS[xinescreen].red >= 0)
         {
-            if (XINERAMA_SCREENS[i].red >= 0)
-            {
-                imlib_context_set_color(XINERAMA_SCREENS[i].red,
-                                        XINERAMA_SCREENS[i].green,
-                                        XINERAMA_SCREENS[i].blue,
-                                        255);
-                imlib_image_fill_rectangle(XINERAMA_SCREENS[i].x, 
-                                           XINERAMA_SCREENS[i].y,
-                                           XINERAMA_SCREENS[i].width,
-                                           XINERAMA_SCREENS[i].height);
-            }
+            imlib_context_set_color(XINERAMA_SCREENS[xinescreen].red,
+                                    XINERAMA_SCREENS[xinescreen].green,
+                                    XINERAMA_SCREENS[xinescreen].blue,
+                                    255);
+            imlib_image_fill_rectangle(XINERAMA_SCREENS[xinescreen].x,
+                                       XINERAMA_SCREENS[xinescreen].y,
+                                       XINERAMA_SCREENS[xinescreen].width,
+                                       XINERAMA_SCREENS[xinescreen].height);
         }
     }
 
@@ -1206,22 +1207,22 @@ void store_background()
                                        XINERAMA_VIRTUAL_SCREEN.height,
                                        0);
 
-    if (!STORE_PIXMAP_SLICES) 
+    if (!STORE_PIXMAP_SLICES)
     {
         /* store complete image */
         imlib_context_set_image(complete_image);
         imlib_save_image(STORE_PIXMAP_FILENAME);
         imlib_free_image();
-    } 
+    }
     else
     {
         /* build names of slices */
-        CALLOC(completeSliceFilename, 
+        CALLOC(completeSliceFilename,
                strlen(STORE_PIXMAP_FILENAME) * 2,
                sizeof(char));
 
         /* Avoid strndup() since it's GNU only */
-        CALLOC(baseFilename, 
+        CALLOC(baseFilename,
                fileExtension - STORE_PIXMAP_FILENAME,
                sizeof(char));
         strncpy(baseFilename,
@@ -1237,11 +1238,11 @@ void store_background()
                                          XINERAMA_SCREENS[xinescreen].y,
                                          XINERAMA_SCREENS[xinescreen].width,
                                          XINERAMA_SCREENS[xinescreen].height);
-            if (slice) 
+            if (slice)
             {
                 sprintf(completeSliceFilename,
                         "%s%d.%s",
-                        baseFilename, 
+                        baseFilename,
                         xinescreen,
                         fileExtension);
 
@@ -1263,7 +1264,7 @@ void store_background()
         FREE(completeSliceFilename);
         FREE(baseFilename);
     }
-    
+
     return;
 }
 
@@ -1285,7 +1286,7 @@ void scale_image(int image_index, int xinerama_screen, int *width, int *height)
         if ((IMAGES[image_index].screen == XINERAMA_SPAN) ||
             (NUM_XINERAMA_SCREENS == 0))
         {
-            float span_wh_ratio = 
+            float span_wh_ratio =
               (float)XINERAMA_VIRTUAL_SCREEN.width /
               (float)XINERAMA_VIRTUAL_SCREEN.height;
 
@@ -1302,7 +1303,7 @@ void scale_image(int image_index, int xinerama_screen, int *width, int *height)
         }
         else /* XINERAMA_EACH or individual screen */
         {
-	    float screen_wh_ratio =
+            float screen_wh_ratio =
               (float)XINERAMA_SCREENS[xinerama_screen].width /
               (float)XINERAMA_SCREENS[xinerama_screen].height;
 
@@ -1396,7 +1397,7 @@ void position_image(int image_index, int xinerama_screen,
 {
     *x = 0;
     *y = 0;
-    
+
     /* find the X-axis position */
     if (IMAGES[image_index].center & X_AXIS)
     {
@@ -1449,7 +1450,7 @@ void tile_image(int image_index, int xinerama_screen, int width, int height)
     if ((IMAGES[image_index].screen == XINERAMA_SPAN) ||
         (NUM_XINERAMA_SCREENS == 0))
     {
-        if ((IMAGES[image_index].center & X_AXIS) || 
+        if ((IMAGES[image_index].center & X_AXIS) ||
             (IMAGES[image_index].tile_w > 0))
         {
             /* integer tile along the x axis */
@@ -1470,7 +1471,7 @@ void tile_image(int image_index, int xinerama_screen, int width, int height)
         if ((IMAGES[image_index].center & Y_AXIS) ||
             (IMAGES[image_index].tile_h > 0))
         {
-            /* integer tile along the y axis */            
+            /* integer tile along the y axis */
             if (IMAGES[image_index].tile_h > 0)
                 num_y = IMAGES[image_index].tile_h;
             else
@@ -1498,7 +1499,7 @@ void tile_image(int image_index, int xinerama_screen, int width, int height)
             start_x = (XINERAMA_SCREENS[xinerama_screen].width / 2) -
                         ((width * num_x) / 2) +
                         XINERAMA_SCREENS[xinerama_screen].x;
-                       
+
         }
         else
         {
@@ -1514,7 +1515,7 @@ void tile_image(int image_index, int xinerama_screen, int width, int height)
         if ((IMAGES[image_index].center & Y_AXIS) ||
             (IMAGES[image_index].tile_h > 0))
         {
-            /* integer tile along the y axis */            
+            /* integer tile along the y axis */
             if (IMAGES[image_index].tile_h > 0)
                 num_y = IMAGES[image_index].tile_h;
             else
@@ -1535,7 +1536,7 @@ void tile_image(int image_index, int xinerama_screen, int width, int height)
     }
 
     /* tile the image */
-    for (i = 0; i < num_x; i++) 
+    for (i = 0; i < num_x; i++)
     {
         for (j = 0; j < num_y; j++)
         {
@@ -1546,13 +1547,18 @@ void tile_image(int image_index, int xinerama_screen, int width, int height)
             int bottommost_pixel = topmost_pixel + height;
             int cropped_width  = width;
             int cropped_height = height;
-            if (xinerama_screen >= 0) 
+            if (xinerama_screen >= 0)
             {
+                /* We're cropping the images to the screen, because if we don't
+                 * it will bleed on to the neighboring screen if we're drawing
+                 * on a specific xinerama screen. If we're spanning screens,
+                 it doesn't matter. In fact, we want the bleeding to occur.
+                 */
                 if (rightmost_pixel >
                     (XINERAMA_SCREENS[xinerama_screen].x +
                      XINERAMA_SCREENS[xinerama_screen].width))
                 {
-                    cropped_width = 
+                    cropped_width =
                       width - (rightmost_pixel -
                                (XINERAMA_SCREENS[xinerama_screen].x +
                                 XINERAMA_SCREENS[xinerama_screen].width));
@@ -1624,7 +1630,7 @@ void flip_and_rotate_image(int image_index)
  */
 
 void mirror_image(int image_index)
-{    
+{
     Imlib_Image new_image;
     Imlib_Image old_image;
 
@@ -1647,21 +1653,21 @@ void mirror_image(int image_index)
             pixmap_height = image_height * 2;
         else
             pixmap_height = image_height;
-        
-        
-        
+
+
+
         new_pixmap = XCreatePixmap(XDISPLAY, XROOT,
                                    pixmap_width, pixmap_height, XDEPTH);
 
-        
+
         /* push */
         old_pixmap = imlib_context_get_drawable();
         old_image  = imlib_context_get_image();
-        
-        
+
+
         /* set */
         imlib_context_set_drawable(new_pixmap);
-     
+
         imlib_render_image_on_drawable(0, 0);
 
         if (IMAGES[image_index].mirror & Y_AXIS)
@@ -1671,7 +1677,7 @@ void mirror_image(int image_index)
         }
 
 
-        if (IMAGES[image_index].mirror & X_AXIS) 
+        if (IMAGES[image_index].mirror & X_AXIS)
         {
             if (IMAGES[image_index].mirror & Y_AXIS)
             {
@@ -1691,7 +1697,7 @@ void mirror_image(int image_index)
             }
         }
 
-      
+
         imlib_free_image();
         new_image = imlib_create_image_from_drawable(0,
                                                      0, 0,
@@ -1700,12 +1706,12 @@ void mirror_image(int image_index)
                                                      0);
         imlib_context_set_image(new_image);
 
-                
+
         /* pop */
         imlib_context_set_drawable(old_pixmap);
-        //imlib_context_set_image(old_image);        
+        //imlib_context_set_image(old_image);
     }
-    
+
     return;
 }
 
@@ -1740,7 +1746,7 @@ Pixmap get_background()
                                               XINERAMA_VIRTUAL_SCREEN.width,
                                               XINERAMA_VIRTUAL_SCREEN.height,
                                               XDEPTH);
-                    
+
             gcvalue.foreground = BlackPixelOfScreen(XSCR);
             gc = XCreateGC(XDISPLAY, p, GCForeground, &gcvalue);
 
@@ -1765,7 +1771,7 @@ Pixmap get_background()
                                           XDEPTH);
     }
 
-    
+
     return background_pixmap;
 }
 
@@ -1791,7 +1797,7 @@ int main(int argc, char **argv, char **env)
             fprintf(stderr, "Couldn't open a DISPLAY\n");
             exit(2);
         }
-    
+
     XSCREEN   = DefaultScreen(XDISPLAY);
     XROOT     = DefaultRootWindow(XDISPLAY);
     XSCR      = ScreenOfDisplay(XDISPLAY, XSCREEN);
@@ -1849,10 +1855,9 @@ int main(int argc, char **argv, char **env)
         XSetWindowBackgroundPixmap(XDISPLAY, XROOT, pixmap);
         XSetWindowBackgroundPixmap(XDISPLAY, get_desktop_window(), pixmap);
         XClearWindow(XDISPLAY, XROOT);
-        XFlush(XDISPLAY); 
+        XFlush(XDISPLAY);
     }
     XCloseDisplay(XDISPLAY);
-    
+
     return 0;
 }
-
