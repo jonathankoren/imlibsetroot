@@ -113,7 +113,7 @@
  *  		    Enforce cropping to monitor size even when tiling.
  *  		    Changed -T to -t .
  *          Tue Mar  8 22:37:07 PST 2016        Jonathan Koren
- *              Minor code cleanups.
+ *              Minor comments additions and formatting.
  */
 
 #include <stdio.h>
