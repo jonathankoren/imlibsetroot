@@ -8,7 +8,7 @@ imlib2
 
 Compiling
 =========
-./build
+./configure;make;sudo make install
 
 Executables
 ===========
