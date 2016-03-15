@@ -26,14 +26,32 @@
 #
 # Provides MacOSX support for imlibsetroot.  Usage is identical to imlibsetroot.
 
+# Created:  2010								Jonathan Koren
+# Modified: Mon Mar 14 23:49:45 PDT 2016		Jonathan Koren
+#             Now searches path for imlibsetroot.
+
 $| = 1;
 
 use FileHandle;
 use IPC::Open2;
 use POSIX ":sys_wait_h";
 
-$IMLIBSETROOT = "/Users/jonathan/devel/imlibsetroot/imlibsetroot";
-$OSASCRIPT    = "/usr/bin/osascript";
+sub search_path 
+{
+    ($needle) = @_;
+    foreach $dir (split(/:/, $ENV{'PATH'}))
+    {
+        if (-X "$dir/$needle")
+        {
+            return "$dir/$needle";
+        }
+    }
+
+    return "$needle";
+}
+
+$IMLIBSETROOT = $ENV{"IMLIBSETROOT"} ? $ENV{"IMLIBSETROOT"} : &search_path("imlibsetroot");
+$OSASCRIPT    = &search_path("osascript");
 
 
 # AppleScript refuses to run on dot-files

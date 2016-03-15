@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (C) 2004-2010, Jonathan Koren <jonathan@jonathankoren.com>
+# Copyright (C) 2010-2016, Jonathan Koren <jonathan@jonathankoren.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -27,12 +27,28 @@
 # Provides web support for imlibsetroot.
 #
 # Created   Fri Oct 29 09:55:01 PDT 2010		Jonathan Koren
-# Modified: 
+# Modified: Mon Mar 14 23:49:45 PDT 2016		Jonathan Koren
+#             Now searches path for imlibsetroot.
 
 use File::Temp qw/ :POSIX /;
 use LWP::Simple;
 
-$IMLIBSETROOT = "/Users/jkoren/bin/macosx_imlibsetroot";
+sub search_path 
+{
+    ($needle) = @_;
+    foreach $dir (split(/:/, $ENV{'PATH'}))
+    {
+        if (-X "$dir/$needle")
+        {
+            return "$dir/$needle";
+        }
+    }
+
+    return "$needle";
+}
+
+$IMLIBSETROOT = $ENV{"IMLIBSETROOT"} ? $ENV{"IMLIBSETROOT"} : &search_path("imlibsetroot");
+
 
 my $tmpfilenames = ();
 my @newargs = ();
