@@ -11,16 +11,7 @@ AM_INIT_AUTOMAKE()
 AC_PROG_CC
 
 # Checks for libraries.
-
-AC_PATH_GENERIC(imlib2, 1.0.0)
-
-# This does jackshit. it even says "no" on success, and never fires the error
-# on fail
-#AC_PATH_GENERIC(imlib2, 1.0.0, [
-#  AC_SUBST(IMLIB2_LIBS)
-#  AC_SUBST(IMLIB2_CFLAGS) ],
-#  AC_MSG_ERROR(Cannot find imlib2: Is imlib2-config in the path?) )
-
+AC_CHECK_LIB(imlib2, imlib_load_image)
 
 # Checks for header files.
 AC_PATH_X
