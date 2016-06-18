@@ -1,1 +1,10 @@
 imlibsetroot
+*.o
+Makefile
+config.h
+config.log
+config.status
+script/Makefile
+src/.deps/
+src/Makefile
+stamp-h1
